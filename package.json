@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "npx ts-node src/index.ts",
-    "process-csv-to-json": "npx ts-node src/services/convert-csv-to-json" 
+    "start:debug": "npx --inspect ts-node src/index.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

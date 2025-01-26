@@ -99,7 +99,9 @@ export class ConvertCSVToJSONService {
 
     async isDBConnectionUp(): Promise<boolean> {
         try {
+
             const result = await connection.raw('SELECT 1');
+
             return true;
         }
         catch(error) {
@@ -113,6 +115,14 @@ export class ConvertCSVToJSONService {
 
         const csvLoadPath = this.config.csvLoadPath;
 
+    
+        if(!await this.isDBConnectionUp()) {
+
+            console.log('[database] Database connection could not be established');
+
+            process.exit();
+        }
+
         const csvDataStream = fs.createReadStream(path.join(applicationRoot, csvLoadPath));
 
         const rl = readline.createInterface({
@@ -124,12 +134,7 @@ export class ConvertCSVToJSONService {
 
         let headerRecord: any = [];
 
-        if(!this.isDBConnectionUp()) {
-
-            console.log('[database] Database connection could not be established');
-
-            process.exit();
-        }
+        
 
         console.log('[database] Database connection is established');
 
