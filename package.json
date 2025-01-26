@@ -1,0 +1,23 @@
+{
+  "name": "kelp-online-assessment",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/prashant-s-n/kelp-online-assessment.git",
+  "author": "Prashant <prashantk19372@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "npx ts-node src/index.ts",
+    "process-csv-to-json": "npx ts-node src/services/convert-csv-to-json" 
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "knex": "^3.1.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.10",
+    "typescript": "^5.7.3"
+  }
+}
