@@ -9,9 +9,7 @@ export class ConvertCSVToJSONService {
     private config: IConfigs = {} as IConfigs;
 
     constructor() {
-
         this.config = new ConfigLoader().load();
-
     }
 
     removeExtraSpaces(arg: string) {
@@ -21,18 +19,18 @@ export class ConvertCSVToJSONService {
     // Recursive function to map data based on the structure
     mapData(structure: Record<string, any>, dataRecord: string[]): Record<string, any> {
         const mappedData: Record<string, any> = {};
-    
+
         for (let key in structure) {
             if (typeof structure[key] === 'number') {
                 mappedData[key] = dataRecord[structure[key]]?.trim();
             }
-                
+
             if (typeof structure[key] === 'object') {
-                mappedData[key] = this.mapData(structure[key], dataRecord); 
+                mappedData[key] = this.mapData(structure[key], dataRecord);
             }
         }
 
-        return mappedData; 
+        return mappedData;
     }
 
     createRecordIndexStructure(headerRecord: string[]): Record<string, any> {
@@ -74,7 +72,40 @@ export class ConvertCSVToJSONService {
         return structure;
     }
 
+    async mapAndSaveData(headerProperties: Record<string, any>, record: string[]) {
 
+        try {
+            const mappedData = this.mapData(headerProperties, record);
+    
+            const {
+                name,
+                age,
+                address,
+                ...additionalInfo
+            } = mappedData;
+    
+    
+            await connection('users').insert({
+                name: `${mappedData?.name.firstname} ${mappedData?.name.lastname}`,
+                age: Number(mappedData?.age) || 0,
+                address: mappedData.address,
+                additional_info: additionalInfo
+            });
+        } catch(error) {
+            return false;
+        }
+
+    }
+
+    async isDBConnectionUp(): Promise<boolean> {
+        try {
+            const result = await connection.raw('SELECT 1');
+            return true;
+        }
+        catch(error) {
+            return false;
+        }
+    }
 
     async processCSVToJSON() {
 
@@ -93,7 +124,14 @@ export class ConvertCSVToJSONService {
 
         let headerRecord: any = [];
 
-        
+        if(!this.isDBConnectionUp()) {
+
+            console.log('[database] Database connection could not be established');
+
+            process.exit();
+        }
+
+        console.log('[database] Database connection is established');
 
         rl.on('line', async (line) => {
 
@@ -109,31 +147,40 @@ export class ConvertCSVToJSONService {
             const headerProperties = this.createRecordIndexStructure(headerRecord);
 
             if (!isHeaderRecord) {
-            
-            dataRecords.push(record);
 
-            const mappedData = this.mapData(headerProperties, record);
+                dataRecords.push(record);
 
-            const {
-                name,
-                age,
-                address,
-                ...additionalInfo
-            } = mappedData;
-
-
-            await connection('users').insert({
-                name: `${mappedData?.name.firstname} ${mappedData?.name.lastname}`,
-                age: Number(mappedData?.age) || 0,
-                address: mappedData.address,
-                additional_info: additionalInfo
-            });
+                await this.mapAndSaveData(headerProperties, record);
             }
         });
 
-        rl.on('close', () => {
+        rl.on('close', async () => {
+            console.log('[analysis] Analysis uploaded records');
+            const ageGroupDistribution = await connection.raw(`
+                WITH AgeGroups AS (
+                    SELECT
+                        CASE
+                            WHEN age < 20 THEN '< 20'
+                            WHEN age BETWEEN 20 AND 40 THEN '20 to 40'
+                            WHEN age BETWEEN 40 AND 60 THEN '40 to 60'
+                            ELSE '> 60'
+                        END AS age_group,
+                        COUNT(*) AS group_count
+                    FROM
+                        users 
+                    GROUP BY
+                        age_group
+                )
+                SELECT
+                    age_group AS "Age-Group",
+                    ROUND((CAST(group_count AS DECIMAL) / (SELECT SUM(group_count) FROM AgeGroups)) * 100, 2) AS "% Distribution"
+                FROM
+                    AgeGroups;
+            `);
+            
+            const records = ageGroupDistribution.rows;
 
+            console.table(records);
         })
-
     }
 }
